@@ -59,6 +59,16 @@ def update_weights(input_vectors, target_vector, weights, epsilon):
         for j in range(len(input_vectors)):
             weights[i] += epsilon*input_vectors[j][i]*(target_vector[j]-output[j])
     return weights
+    
+def update_weights_logistic(input_vectors, target_vector, weights, epsilon):
+    logit = np.dot(input_vectors, weights)
+    output = 1/(1+np.exp(-logit))
+    assert type(output[0]) == np.float64
+    for i in range(len(weights)):
+        for j in range(len(input_vectors)):
+            x= epsilon*input_vectors[j][i]*(target_vector[j]-output[j])*output[j]*(float(1)-output[j])
+            weights[i] += x
+    return weights
         
 
 inputs = np.array([ [3, 6, 9], [4, 7, 2], [3, 26, 4], [2, 3, 3], [5, 0, 2], [3, 1, 4]
