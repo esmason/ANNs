@@ -19,7 +19,8 @@ class NeuralNet(object):
 
         self.layer_inputs = [[]]*(len(layer_neuron))
         self.layer_outputs = [[]]*(len(layer_neuron))
-        self.deltas = []
+        #deltas: don't include input layer so len is  len(layer_neuron)-1
+        self.deltas = [[]]*((len(layer_neuron))-1)
 
         #make the weight matrices, each matrix nXm matrix with m = # nodes in the ith layer (incl bias) and n = # nodes in the (i+1)th layer
         #each row represents the set of weights from all 3 neurons in the ith layer to a single neuron in the (i+1)th layer
@@ -38,6 +39,8 @@ class NeuralNet(object):
             return out(1-out)
 
     def run(self, input_vals, target_vals):
+        assert type(target_vals) == np.ndarray
+        assert len(target_vals[0]) == self.layer_neuron[-1]
         self.target_vals = target_vals.T
         """input_vals must be a numpy ndarray"""
         self.input_len = input_vals.shape[0]
@@ -56,10 +59,29 @@ class NeuralNet(object):
         self.update()
         
     def updateDeltas(self):
-        self.deltas[0
+        #update should have been run once, check outputs are non-null
+        assert len(self.layer_outputs[-1]) == self.layer_neuron[-1]
+        last_output = self.layer_outputs[-1]
+        #calculate the derivative of the squared error wrt the output of each k
+        err_deriv = last_output - self.target_vals
+        print(err_deriv)
+        print(last_output)
+        print(np.ones(last_output.shape))
+       #set deltas for the output layer
+        self.deltas[-1] = last_output*(np.ones(last_output.shape) - last_output)*err_deriv
+        #set deltas for an arbitrary number of hidden layers
+        for i in reversed(range(1, len(self.layer_neuron) -1 )):
+            # take weights from layer i to layer i + 1
+            weights = self.weights[i].T
+            print(weights)
+            print(weights.T)
+            for i in range(len(self.layer_outputs(i))):
+                pass
+                #TODO
+            
 
     def update(self):
-        "
+        ""
         assert type(self.layer_inputs[0]) == np.ndarray
         for i in range(len(self.layer_inputs)-1):
             print(self.layer_outputs[i])
@@ -67,25 +89,24 @@ class NeuralNet(object):
             self.layer_inputs[i+1] = next_layer_inputs
             next_layer_outputs = self.activation_function(next_layer_inputs)
             self.layer_outputs[i+1] = next_layer_outputs
-        updateDeltas
-        print("inputs:")
-        print(self.layer_inputs)
-        print("outputs:")
-        print(self.layer_outputs)
+        self.updateDeltas()
+        #print("inputs:")
+        #print(self.layer_inputs)
+        #print("outputs:")
+        #print(self.layer_outputs)
             
 
 
 
-a = NeuralNet((2,2,1))
-print(np.array([1.0, 2.0, 3.0]))
-print(type(np.vstack([np.array([1.0, 2.0, 3.0]), np.ones((1, 3))]) ))
-
-a.run(np.array([[ 1.0, 2.0]]))
-print(len(np.array([[ 1.0, 1.0], [1.0,1.0]])[0]))
+a = NeuralNet((2,2,2))
+#print(np.array([1.0, 2.0, 3.0]))
+#print(type(np.vstack([np.array([1.0, 2.0, 3.0]), np.ones((1, 3))]) ))
+a.run(np.array([[ 1.0, 2.0]]), np.array([[2, 3]]))
+#print(len(np.array([[ 1.0, 1.0], [1.0,1.0]])[0]))
 #print(a.layer_neuron)
 #print(a.weights)
 
 
 #print(type(a.layer_inputs[0])==np.ndarray)
-print(np.array([1.0, 2.0, 3.0]).shape[0])
+#print(np.array([1.0, 2.0, 3.0]).shape[0])
 
