@@ -16,6 +16,7 @@ class NeuralNet(object):
         self.weights = []
         self.input_len = 0
         self.target_vals = []
+        self.current_guess = 0
 
         self.layer_inputs = [[]]*(len(layer_neuron))
         self.layer_outputs = [[]]*(len(layer_neuron))
@@ -27,9 +28,10 @@ class NeuralNet(object):
         #conversely, each column is all the output weights from a node in the ith layer, to each n nodes in the (i+1)th layer
         #the right-most column represents output weights from the bias node
         for i in range(len(self.layer_neuron)-1 ):
+            np.random.seed(0)
             self.weights.append(np.random.normal( scale = 0.1, size = (self.layer_neuron[i+1], self.layer_neuron[i] + 1)))
-        print("weights:")
-        print(self.weights)
+##        print("weights:")
+##        print(self.weights)
 
 
     def activation_function(self, x, deriv=False):
@@ -65,34 +67,51 @@ class NeuralNet(object):
         last_output = self.layer_outputs[-1]
         #calculate the derivative of the squared error wrt the output of each k
         err_deriv = last_output - self.target_vals
-        print(err_deriv)
-        print(last_output)
-        print(np.ones(last_output.shape))
+##        print(err_deriv)
+##        print(last_output)
+##        print(np.ones(last_output.shape))
        #set deltas for the output layer
         self.deltas[-1] = last_output*(np.ones(last_output.shape) - last_output)*err_deriv
         #set deltas for an arbitrary number of hidden layers each layer is denoted i
         for i in reversed(range(1, len(self.layer_neuron) -1 )):
             # take weights from layer i to layer i + 1
             weights = self.weights[i].T
+##            print(weights)
+##            print(self.deltas[i+1])
             #transpose the weight matrix so each row is the weights coming out of a single neuron, dot them with
             #the next layers delta
+            #thus sum_next_deltas is a nX1 array wherein each "row" corresponds to the neuron at the same row in the weight matrix
             sum_next_deltas = np.dot(weights, self.deltas[i+1])
+##            print("sum" , end='')
+##            print(sum_next_deltas)
             #print(self.layer_outputs[i].shape)
-            outputs = self.layer_outputs[i]     #, np.ones((1, self.layer_outputs[i].shape[1]))))
-            deltas = outputs*(np.ones( (outputs.shape[0], 1)) - outputs)
+            outputs = np.vstack([self.layer_outputs[i], np.ones((1, self.layer_outputs[i].shape[1]))])
+            #NB: techincally there is no point calculating the delta for the bias node but I do here for completeness
+            deltas = outputs*(np.ones( (outputs.shape[0], 1)) - outputs)*sum_next_deltas
             self.deltas[i] = deltas
             
                                      
     def update_weights(self):
         weight_deltas = []*(len(self.layer_neuron) - 1)
-        for i in range(len(self.layer_neuron) - 1):
+        for i in range(len(self.layer_neuron)-1):
             #add the bias outputs
             outputs = np.vstack((self.layer_outputs[i], np.ones((1, self.layer_outputs[i].shape[1]))))
-            #get the change in each weight
-            delta_weight = np.dot(self.deltas[i+1], outputs.T)
+            #print(outputs)
 
-            self.weights[i] += -0.1*(self.weights[i] + delta_weight)
-            print(self.weights)
+            next_layer_deltas = self.deltas[i+1]
+            #we do not care about the deltas of the bias nodes (will always be zero) because nothing is going to them
+            #therefore if the next layer is a hidden layer, remove the bias deltas
+            if i+1 < len(self.layer_neuron)-1:
+                next_layer_deltas = next_layer_deltas[:-1]
+            #dot the deltas from the next layer with this layers outputs to obtain a nXm matrix in which each row is
+            #the changes in the weights for all nodes in layer i to 1 node in layer i +1
+            #conversely each column is the change in weights for a single node in i to all the nodes in i + 1
+            #the last column is the bias node
+            delta_weight = np.dot(next_layer_deltas, outputs.T)
+            #print(self.weights)
+            #print(delta_weight)
+            self.weights[i] += -0.5*( delta_weight)
+##            print(self.weights)
             
 
             
@@ -101,14 +120,20 @@ class NeuralNet(object):
         ""
         assert type(self.layer_inputs[0]) == np.ndarray
         for i in range(len(self.layer_inputs)-1):
-            print(self.layer_outputs[i])
+##            print(self.layer_outputs[i])
             #forward propogate by dotting the weight matrices with their correspoding output matrices
             next_layer_inputs = np.dot(self.weights[i], np.vstack((self.layer_outputs[i], np.ones((1, self.input_len)))))
             self.layer_inputs[i+1] = next_layer_inputs
             next_layer_outputs = self.activation_function(next_layer_inputs)
             self.layer_outputs[i+1] = next_layer_outputs
+
+        self.current_guess = next_layer_outputs
+##        print("old weights : ", end = "")
+##        print(self.weights)
         self.update_deltas()
         self.update_weights()
+##        print("new weights : ", end = "")
+##        print(self.weights)
         #print("inputs:")
         #print(self.layer_inputs)
         #print("outputs:")
@@ -117,13 +142,15 @@ class NeuralNet(object):
 
 
 
-a = NeuralNet((2,2,2))
+a = NeuralNet((7,2,1))
 #print(np.array([1.0, 2.0, 3.0]))
 #print(type(np.vstack([np.array([1.0, 2.0, 3.0]), np.ones((1, 3))]) ))
-a.run(np.array([[ 1.0, 2.0], [2.0, 4.0]]), np.array([[2, 3], [4,6]]))
+a.run(np.array([[ 88, 6, 58, 92, 49, 88, 11]]), np.array([[.09193]]))
 #print(len(np.array([[ 1.0, 1.0], [1.0,1.0]])[0]))
 #print(a.layer_neuron)
 #print(a.weights)
+for i in range(500):
+    a.update()
 
 
 #print(type(a.layer_inputs[0])==np.ndarray)
