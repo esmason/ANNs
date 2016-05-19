@@ -19,12 +19,13 @@ class NeuralNet(object):
 
         self.layer_inputs = [[]]*(len(layer_neuron))
         self.layer_outputs = [[]]*(len(layer_neuron))
-        #deltas: don't include input layer so len is  len(layer_neuron)-1
-        self.deltas = [[]]*((len(layer_neuron))-1)
+        #deltas: don't include input layer but still put it in for spacing ie self.deltas[0] should always be empty
+        self.deltas = [[]]*((len(layer_neuron)))
 
         #make the weight matrices, each matrix nXm matrix with m = # nodes in the ith layer (incl bias) and n = # nodes in the (i+1)th layer
-        #each row represents the set of weights from all 3 neurons in the ith layer to a single neuron in the (i+1)th layer
-        #conversely, each column is all the output weights from a node in the ith layer, to each node in the (i+1)th layer
+        #each row represents the set of weights from all m neurons in the ith layer to a single neuron in the (i+1)th layer
+        #conversely, each column is all the output weights from a node in the ith layer, to each n nodes in the (i+1)th layer
+        #the right-most column represents output weights from the bias node
         for i in range(len(self.layer_neuron)-1 ):
             self.weights.append(np.random.normal( scale = 0.1, size = (self.layer_neuron[i+1], self.layer_neuron[i] + 1)))
         print("weights:")
@@ -58,7 +59,7 @@ class NeuralNet(object):
         #print(self.layer_outputs)
         self.update()
         
-    def updateDeltas(self):
+    def update_deltas(self):
         #update should have been run once, check outputs are non-null
         assert len(self.layer_outputs[-1]) == self.layer_neuron[-1]
         last_output = self.layer_outputs[-1]
@@ -69,15 +70,31 @@ class NeuralNet(object):
         print(np.ones(last_output.shape))
        #set deltas for the output layer
         self.deltas[-1] = last_output*(np.ones(last_output.shape) - last_output)*err_deriv
-        #set deltas for an arbitrary number of hidden layers
+        #set deltas for an arbitrary number of hidden layers each layer is denoted i
         for i in reversed(range(1, len(self.layer_neuron) -1 )):
             # take weights from layer i to layer i + 1
             weights = self.weights[i].T
-            print(weights)
-            print(weights.T)
-            for i in range(len(self.layer_outputs(i))):
-                pass
-                #TODO
+            #transpose the weight matrix so each row is the weights coming out of a single neuron, dot them with
+            #the next layers delta
+            sum_next_deltas = np.dot(weights, self.deltas[i+1])
+            #print(self.layer_outputs[i].shape)
+            outputs = self.layer_outputs[i]     #, np.ones((1, self.layer_outputs[i].shape[1]))))
+            deltas = outputs*(np.ones( (outputs.shape[0], 1)) - outputs)
+            self.deltas[i] = deltas
+            
+                                     
+    def update_weights(self):
+        weight_deltas = []*(len(self.layer_neuron) - 1)
+        for i in range(len(self.layer_neuron) - 1):
+            #add the bias outputs
+            outputs = np.vstack((self.layer_outputs[i], np.ones((1, self.layer_outputs[i].shape[1]))))
+            #get the change in each weight
+            delta_weight = np.dot(self.deltas[i+1], outputs.T)
+
+            self.weights[i] += -0.1*(self.weights[i] + delta_weight)
+            print(self.weights)
+            
+
             
 
     def update(self):
@@ -85,11 +102,13 @@ class NeuralNet(object):
         assert type(self.layer_inputs[0]) == np.ndarray
         for i in range(len(self.layer_inputs)-1):
             print(self.layer_outputs[i])
+            #forward propogate by dotting the weight matrices with their correspoding output matrices
             next_layer_inputs = np.dot(self.weights[i], np.vstack((self.layer_outputs[i], np.ones((1, self.input_len)))))
             self.layer_inputs[i+1] = next_layer_inputs
             next_layer_outputs = self.activation_function(next_layer_inputs)
             self.layer_outputs[i+1] = next_layer_outputs
-        self.updateDeltas()
+        self.update_deltas()
+        self.update_weights()
         #print("inputs:")
         #print(self.layer_inputs)
         #print("outputs:")
@@ -101,7 +120,7 @@ class NeuralNet(object):
 a = NeuralNet((2,2,2))
 #print(np.array([1.0, 2.0, 3.0]))
 #print(type(np.vstack([np.array([1.0, 2.0, 3.0]), np.ones((1, 3))]) ))
-a.run(np.array([[ 1.0, 2.0]]), np.array([[2, 3]]))
+a.run(np.array([[ 1.0, 2.0], [2.0, 4.0]]), np.array([[2, 3], [4,6]]))
 #print(len(np.array([[ 1.0, 1.0], [1.0,1.0]])[0]))
 #print(a.layer_neuron)
 #print(a.weights)
