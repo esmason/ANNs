@@ -29,7 +29,7 @@ class NeuralNet(object):
         #the right-most column represents output weights from the bias node
         for i in range(len(self.layer_neuron)-1 ):
             np.random.seed(0)
-            self.weights.append(np.random.normal( scale = 0.1, size = (self.layer_neuron[i+1], self.layer_neuron[i] + 1)))
+            self.weights.append(np.random.normal( scale = 0.2, size = (self.layer_neuron[i+1], self.layer_neuron[i] + 1)))
 ##        print("weights:")
 ##        print(self.weights)
 
@@ -99,6 +99,7 @@ class NeuralNet(object):
             #print(outputs)
 
             next_layer_deltas = self.deltas[i+1]
+            #print(next_layer_deltas[:-1])
             #we do not care about the deltas of the bias nodes (will always be zero) because nothing is going to them
             #therefore if the next layer is a hidden layer, remove the bias deltas
             if i+1 < len(self.layer_neuron)-1:
@@ -107,14 +108,15 @@ class NeuralNet(object):
             #the changes in the weights for all nodes in layer i to 1 node in layer i +1
             #conversely each column is the change in weights for a single node in i to all the nodes in i + 1
             #the last column is the bias node
-            delta_weight = np.dot(next_layer_deltas, outputs.T)
+            delta_weight = np.sum(next_layer_deltas[None,:,:].transpose(2, 1,0)*outputs[None,:,:].transpose(2,0,1), axis=0)
             #print(self.weights)
             #print(delta_weight)
-            self.weights[i] += -0.5*( delta_weight)
+            self.weights[i] += -0.1*( delta_weight)
 ##            print(self.weights)
             
 
-            
+
+        
 
     def update(self):
         ""
@@ -142,14 +144,15 @@ class NeuralNet(object):
 
 
 
-a = NeuralNet((7,2,1))
+a = NeuralNet((3,8,1))
 #print(np.array([1.0, 2.0, 3.0]))
 #print(type(np.vstack([np.array([1.0, 2.0, 3.0]), np.ones((1, 3))]) ))
-a.run(np.array([[ 88, 6, 58, 92, 49, 88, 11]]), np.array([[.09193]]))
+a.run(np.array([[ 1, 1, 1], [1,1, 0], [1, 0,1] ,[0,1,1], [0,0,1], [1,0,0] ,[0,1,0], [0,0,0]   ]), np.array([[0.95],[0.95], [0.95], [0.95], [0.95], [0.05],[0.05],[0.05]]))
+#train for p^qvr
 #print(len(np.array([[ 1.0, 1.0], [1.0,1.0]])[0]))
 #print(a.layer_neuron)
 #print(a.weights)
-for i in range(500):
+for i in range(10000):
     a.update()
 
 
