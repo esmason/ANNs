@@ -1,0 +1,53 @@
+import theano
+from theano import tensor as T
+import numpy as np
+import matplotlib.pylab as plt
+from matplotlib import animation
+
+
+
+
+train_x = np.linspace(-1, 1, 101)
+
+train_y = 2*train_x + np.random.randn(*train_x.shape)*0.33
+
+X = T.scalar()
+Y = T.scalar()
+
+def model(X, W):
+    return X*W
+
+W = theano.shared(np.asarray(-1 , dtype=theano.config.floatX))
+y = model(X,W)
+
+cost = T.mean(T.sqr(y - Y))
+gradient = T.grad(cost = cost, wrt=W)
+updates = [[W, W - gradient*0.01]]
+
+train = theano.function(inputs = [X, Y], outputs=cost, updates=updates, allow_input_downcast=True)
+
+#for i in range(100):
+#    for x,y in zip(train_x, train_y):
+#        train(x, y)
+
+#plt.scatter(train_x, train_y, train_x, W.get_value()*train_x)
+
+fig = plt.figure()
+ax = plt.axes(xlim = (-1, 1), ylim = (-2, 2), frameon = True)
+line, = ax.plot([], [])
+
+def init():
+    line.set_data(train_x, W.get_value()*train_x)
+    ax.scatter(train_x, train_y)
+    ax.set_title("W = " + str(W.get_value()) + "Error = " + str(np.mean((train_x*W.get_value()- train_y)**2)))
+    return line,
+
+def animate(i):
+    for x,y in zip(train_x, train_y):
+        train(x, y)
+    ax.set_title("W = " + str(W.get_value()) + "  Error = " + str(np.mean((train_x*W.get_value()- train_y)**2)))
+
+    line.set_ydata(W.get_value()*train_x)
+    return line,
+anim = animation.FuncAnimation(fig, animate, init_func = init, frames = 200, interval = 2000, blit = False)
+plt.show()
