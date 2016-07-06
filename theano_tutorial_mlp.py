@@ -10,7 +10,6 @@ with addiitons by me:
   
 '''
 
-
 """
 This tutorial introduces the multilayer perceptron using Theano.
 
@@ -188,7 +187,7 @@ class LogisticRegression(object):
 # start-snippet-1
 class HiddenLayer(object):
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,
-                 activation=T.tanh, dropout = False):
+                 activation=T.tanh, dropout = False, dropout_rate = 0.5):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
         sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
@@ -215,6 +214,8 @@ class HiddenLayer(object):
                            layer
         """
         self.input = input
+        self.rng = rng
+        self.n_out = n_out
         # end-snippet-1
 
         # `W` is initialized with `W_values` which is uniformely sampled
@@ -249,20 +250,16 @@ class HiddenLayer(object):
         self.W = W
         self.b = b
         lin_output = T.dot(input, self.W) + self.b
-
-        if dropout:
-            ### TODO replace random_integer with bernouli/binomial
-            self.dropout = theano.shared(value=np.ones((20,1)) *np.array( rng.random_integers(size = (n_out, ), low = 0, high = 1),
-                                                         dtype = theano.config.floatX),
-                                         name = 'dropout',
-                                         borrow = True
-                                         )
-            print(type(self.dropout))
-            lin_output = lin_output * self.dropout
         self.output = (
             lin_output if activation is None
-            else activation(lin_output)
-        )
+            else activation(lin_output) )
+        if dropout:
+            self.set_dropout(dropout_rate)
+  
+
+        
+  
+        
         # parameters of the model
         self.params = [self.W, self.b]
         accW = theano.shared(value = np.zeros_like(self.W.eval(), dtype = theano.config.floatX),
@@ -273,6 +270,29 @@ class HiddenLayer(object):
                              borrow = True)
 
         self.accs = [accW, accB]
+
+    def set_dropout(self, p):
+        self.dropout_rate = p
+        self.dropout = theano.shared(value=np.ones((20,1)) *np.array( self.rng.binomial(size = (self.n_out, ), n = 1, p = self.dropout_rate),
+                                                         dtype = theano.config.floatX),
+                                         name = 'dropout',
+                                         borrow = True
+                                         )
+        self.output *= self.dropout
+        
+    def set_predict(self):
+        self.dropout = theano.shared(value=np.ones((28000,1)) *np.array( self.rng.binomial(size = (self.n_out, ), n = 1, p = 1),
+                                                         dtype = theano.config.floatX),
+                                         name = 'dropout',
+                                         borrow = True
+                                         )
+        
+        self.output *= theano.shared(value=np.ones((28000,1)) * ( np.transpose(np.array([self.dropout_rate]*self.n_out, dtype = theano.config.floatX)
+                                                         )),
+                                         name = 'dropout',
+                                         borrow = True
+                                         )
+
 
 # start-snippet-2
 class MLP(object):
@@ -286,7 +306,7 @@ class MLP(object):
     class).
     """
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out, dropout = False):
+    def __init__(self, rng, input, n_in, n_hidden, n_out, dropout = False, dropout_rate = 0.5):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -319,11 +339,14 @@ class MLP(object):
             n_in=n_in,
             n_out=n_hidden,
             activation=T.tanh,
-            dropout = dropout
+            dropout = dropout,
+            dropout_rate = dropout_rate
         )
         if dropout:
             self.dropout = self.hiddenLayer.dropout
+            self.dropout_rate = dropout_rate
 
+        
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
         self.logRegressionLayer = LogisticRegression(
@@ -365,6 +388,11 @@ class MLP(object):
 
         # keep track of model input
         self.input = input
+
+    ###TODO be able to set dropout rate for final run through
+    def set_dropout(self, p):
+        self.dropout_rate = p
+        self.hiddenLayer.set_dropout(p)
 
 
 def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.0001, n_epochs=600,
@@ -492,7 +520,7 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.0001, n_epochs=600,
 
     #get a new random dropout matrix
     if dropout:
-        new_dropout = np.ones((20,1)) * rng.random_integers(size = (500,), low = 0, high = 1)
+        new_dropout = np.ones((20,1)) * rng.binomial(size = (500, ), n = 1, p = 0.5)
         updates.append( (classifier.dropout, new_dropout))
         
     # compiling a Theano function `train_model` that returns the cost, but
@@ -650,12 +678,15 @@ def predict(first_ten = True):
 
     # load the saved model
     classifier = pickle.load(open(r'best_model_mlp.pkl', "rb"), encoding = 'latin1')
+    new_drop = T.matrix()
+    set_predict_mode = theano.function(inputs = [new_drop], updates = [(classifier.dropout, new_drop)])
+    set_predict_mode( np.ones((28000,500)) * classifier.dropout_rate )
+    
 
     # compile a predictor function
     predict_model = theano.function(
         inputs=[classifier.input],
         outputs=classifier.logRegressionLayer.y_pred)
-
     # We can test it on some examples from test test
     A = MnistReader("test.csv")
     print("loading test data....")
@@ -678,18 +709,20 @@ def predict(first_ten = True):
 
 
 if __name__ == '__main__':
-    rule= 'standard'
-    for rate in [0.01]:
-        test_mlp(n_epochs = 60, update_rule = rule, learning_rate = rate, dropout = True)
+    rule= 'momentum'
+    for rate in [0.001]:
+        test_mlp(n_epochs = 60, update_rule = rule, learning_rate = rate, dropout = False)
 
-    #x = predict(first_ten = False)
+    x = predict(first_ten = False)
 
-##    with open('ans_NN.csv', 'w') as csvfile:
-##        fieldnames = ['ImageId', 'Label']
-##        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-##        writer.writeheader()
-##        for i,j in enumerate(x):
-##            writer.writerow(dict(zip(fieldnames, (i+1, j) )))
+    with open('ans_NN.csv', 'w') as csvfile:
+        fieldnames = ['ImageId', 'Label']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for i,j in enumerate(x):
+            writer.writerow(dict(zip(fieldnames, (i+1, j) )))
 ##        
+
+    
 
     
