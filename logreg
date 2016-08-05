@@ -1,0 +1,68 @@
+import theano
+from theano import tensor as T
+import numpy as np
+import matplotlib.pylab as plt
+from matplotlib import animation
+
+''' animation of gradient descent for an example of logistic regression
+based on code for a linear regression found in Alec Radford deep learning in python tutorial https://www.youtube.com/watch?v=S75EdAcXHKk'''
+
+train_x = np.random.randn(100, 2)
+#np.vstack( [np.linspace(-1, 1, 101), np.linspace(-1, 1, 101)]).transpose()
+
+
+train_y = np.round(np.abs(np.sign( np.sum(train_x, axis = 1)) -1)/2)
+print(train_y[0:10])
+
+negative_data= np.array( [train_x[i] for i in range(len(train_x)) if train_y[i] ==0] ).transpose
+positive_data= np.array([train_x[i] for i in range(len(train_x)) if train_y[i] ==1] ).transpose
+
+#plt.scatter(train_x.transpose()[0], train_x.transpose()[1])
+
+X = T.fvector()
+Y = T.scalar()
+
+def model(X, theta):
+    return T.nnet.sigmoid(T.dot(X, theta))
+
+theta = theano.shared(np.array([0.1, 1, 0.1] , dtype=theano.config.floatX))
+y = model(X,theta)
+
+def cost_fun(y, Y):
+    return -Y*T.log( y) - (1-Y)*T.log(1-y)
+    
+cost = cost_fun(y, Y)
+gradient = T.grad(cost = cost, wrt=theta)
+updates = [[theta, theta - gradient*0.001]]
+
+train = theano.function(inputs = [X, Y], outputs=cost, updates=updates, allow_input_downcast=True)
+
+
+#plt.scatter(train_x, train_y, train_x, W.get_value()*train_x)
+
+fig = plt.figure()
+ax = plt.axes(xlim = (-5, 5), ylim = (-5, 5), frameon = True)
+line, = ax.plot([], [])
+x_data = np.linspace(-5,5, 100)
+
+def init():
+    co1,co2,b = theta.eval()
+    line.set_data(x_data, -co1/co2*x_data + b)
+    ax.scatter(negative_data[0], negative_data[1], color = 'red')
+    ax.scatter(positive_data[0], positive_data[1])
+    #ax.set_title("W = " + str(W.get_value()) + "Error = " + str(np.mean((train_x*W.get_value()- train_y)**2)))
+    return line,
+
+def animate(i):
+    for x,y in zip(train_x, train_y):
+        train(np.hstack((x,1)) , y)
+    co1,co2,b = theta.eval()
+    var =  np.sum(np.abs( np.round((T.nnet.sigmoid( np.dot(theta.eval(), np.hstack((train_x, np.ones((100,1)))).transpose() )).eval()))  - train_y))
+    ax.set_title("Incorrectly classified = " + str(var) )
+    line.set_ydata(-co2/co1*x_data + b)
+    return line,
+anim = animation.FuncAnimation(fig, animate, init_func = init, frames = 40, interval = 20, blit = False)
+plt.show()
+
+
+##np.round(T.nnet.sigmoid(np.dot(theta.eval(), np.hstack((train_x, np.ones((100,1)))).transpose())).eval()) - train_y
