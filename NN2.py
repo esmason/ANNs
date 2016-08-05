@@ -1,6 +1,8 @@
 import numpy as np
 import random as rd
 
+'''modified from Ryan Harris neural networks in python tutorial https://www.youtube.com/watch?v=XqRUHEeiyCs&list=PLRyu4ecIE9tibdzuhJr94uQeKnOFkkbq6'''
+
 class NeuralNet(object):
     """a basic neural net"""
 
